@@ -3,36 +3,39 @@ on: [push, pull_request]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.10'
 
       - name: Install Dependencies
         run: |
           sudo apt update
-          sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev
+          # Error 77 ko fix karne ke liye additional packages
+          sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev build-essential
           pip3 install --upgrade pip
-          pip3 install Cython==0.29.33 buildozer
+          pip3 install "Cython<3.0" buildozer 
 
       - name: Build APK with Buildozer
         run: |
           export PATH=$PATH:$HOME/.local/bin
+          # Error 77/Configure issues fix karne ke liye env
+          export PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig
           
-          # Force NDK and API in spec file
+          # Spec file settings ko automatic sahi karna
           sed -i 's/^#\? \?android.ndk =.*/android.ndk = 25b/' buildozer.spec
           sed -i 's/^#\? \?android.api =.*/android.api = 33/' buildozer.spec
           sed -i 's/^#\? \?android.accept_sdk_license =.*/android.accept_sdk_license = True/' buildozer.spec
           
-          # Use non-interactive build
           buildozer -v android debug
         env:
           APP_ANDROID_ACCEPT_SDK_LICENSE: 1
           BUILDOZER_ALLOW_ORG_NAME_START: 1
+          BUILDOZER_WARN_ON_ROOT: 0
 
       - name: Upload APK
         if: always()
